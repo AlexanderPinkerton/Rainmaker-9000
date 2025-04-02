@@ -21,6 +21,8 @@ uint32_t draw_buf[DRAW_BUF_SIZE / 4];
 int slider_values[2] = {0, 0};
 unsigned long lastActivationTime = 0;
 
+lv_obj_t *slider_labels[2];
+
 void log_print(lv_log_level_t level, const char * buf) {
   LV_UNUSED(level);
   Serial.println(buf);
@@ -58,42 +60,42 @@ void slider_event_handler(lv_event_t * e) {
   lv_obj_t * slider = (lv_obj_t*)lv_event_get_target(e);
   int *slider_index = (int*)lv_event_get_user_data(e);
   slider_values[*slider_index] = lv_slider_get_value(slider);
+  lv_label_set_text_fmt(slider_labels[*slider_index], "%d sec", slider_values[*slider_index]);
   Serial.printf("Slider %d set to %d seconds\n", *slider_index + 1, slider_values[*slider_index]);
 }
 
-void create_button(int *pin, const char * label_text, lv_align_t align, int y_offset) {
+void create_button_slider_pair(int *pin, int *slider_index, const char * button_label, int y_offset) {
   lv_obj_t * btn = lv_button_create(lv_screen_active());
   lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, pin);
-  lv_obj_align(btn, align, 0, y_offset);
-
+  lv_obj_align(btn, LV_ALIGN_TOP_LEFT, 10, y_offset);
+  lv_obj_set_size(btn, 80, 50);
   lv_obj_t * btn_label = lv_label_create(btn);
-  lv_label_set_text(btn_label, label_text);
+  lv_label_set_text(btn_label, button_label);
   lv_obj_center(btn_label);
-}
 
-void create_slider(int *index, lv_align_t align, int y_offset) {
   lv_obj_t * slider = lv_slider_create(lv_screen_active());
-  lv_obj_align(slider, align, 0, y_offset);
-  lv_obj_add_event_cb(slider, slider_event_handler, LV_EVENT_VALUE_CHANGED, index);
+  lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, y_offset);
+  lv_obj_add_event_cb(slider, slider_event_handler, LV_EVENT_VALUE_CHANGED, slider_index);
   lv_slider_set_range(slider, 0, 3600);
+  lv_obj_set_width(slider, 150);
+
+  slider_labels[*slider_index] = lv_label_create(lv_screen_active());
+  lv_label_set_text_fmt(slider_labels[*slider_index], "%d sec", slider_values[*slider_index]);
+  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_RIGHT, -10, y_offset);
 }
 
 void lv_create_main_gui(void) {
-  static int pin_35 = 35, pin_22 = 22, pin_27 = 27;
+  static int pin_22 = 22, pin_27 = 27;
   static int slider_0 = 0, slider_1 = 1;
 
-  create_button(&pin_35, "Button 1", LV_ALIGN_CENTER, -50);
-  create_button(&pin_22, "Button 2", LV_ALIGN_CENTER, 10);
-  create_button(&pin_27, "Button 3", LV_ALIGN_CENTER, 70);
-  
-  create_slider(&slider_0, LV_ALIGN_CENTER, 130);
-  create_slider(&slider_1, LV_ALIGN_CENTER, 180);
+  create_button_slider_pair(&pin_22, &slider_0, "Button 1", 20);
+  create_button_slider_pair(&pin_27, &slider_1, "Button 2", 100);
 }
 
 void setup() {
   Serial.begin(115200);
-  int pins[] = {35, 22, 27};
-  for (int i = 0; i < 3; i++) {
+  int pins[] = {22, 27};
+  for (int i = 0; i < 2; i++) {
     pinMode(pins[i], OUTPUT);
     digitalWrite(pins[i], LOW);
   }
@@ -123,7 +125,7 @@ void loop() {
   unsigned long currentTime = millis();
   if (currentTime - lastActivationTime >= 3600000) {  // Every hour
     lastActivationTime = currentTime;
-    int pins[] = {35, 22};
+    int pins[] = {22, 27};
     for (int i = 0; i < 2; i++) {
       digitalWrite(pins[i], HIGH);
       delay(slider_values[i] * 1000);

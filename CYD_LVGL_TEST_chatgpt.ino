@@ -64,32 +64,37 @@ void slider_event_handler(lv_event_t * e) {
   Serial.printf("Slider %d set to %d seconds\n", *slider_index + 1, slider_values[*slider_index]);
 }
 
-void create_button_slider_pair(int *pin, int *slider_index, const char * button_label, int y_offset) {
-  lv_obj_t * btn = lv_button_create(lv_screen_active());
-  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, pin);
-  lv_obj_align(btn, LV_ALIGN_TOP_LEFT, 10, y_offset);
-  lv_obj_set_size(btn, 80, 50);
-  lv_obj_t * btn_label = lv_label_create(btn);
-  lv_label_set_text(btn_label, button_label);
-  lv_obj_center(btn_label);
+void create_button_slider_pair(int *pin, int *slider_index, const char * label_text, int y_offset) {
+  lv_obj_t * label = lv_label_create(lv_screen_active());
+  lv_label_set_text(label, label_text);
+  lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
+  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y_offset);
 
   lv_obj_t * slider = lv_slider_create(lv_screen_active());
-  lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, y_offset);
+  lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, y_offset + 40);
   lv_obj_add_event_cb(slider, slider_event_handler, LV_EVENT_VALUE_CHANGED, slider_index);
-  lv_slider_set_range(slider, 0, 3600);
+  lv_slider_set_range(slider, 0, 60);
   lv_obj_set_width(slider, 150);
 
   slider_labels[*slider_index] = lv_label_create(lv_screen_active());
   lv_label_set_text_fmt(slider_labels[*slider_index], "%d sec", slider_values[*slider_index]);
-  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_RIGHT, -10, y_offset);
+  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_RIGHT, -10, y_offset + 40);
+
+  lv_obj_t * btn = lv_button_create(lv_screen_active());
+  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, pin);
+  lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y_offset + 70);
+  lv_obj_set_size(btn, 100, 30);
+  lv_obj_t * btn_label = lv_label_create(btn);
+  lv_label_set_text(btn_label, "Test");
+  lv_obj_center(btn_label);
 }
 
 void lv_create_main_gui(void) {
   static int pin_22 = 22, pin_27 = 27;
   static int slider_0 = 0, slider_1 = 1;
 
-  create_button_slider_pair(&pin_22, &slider_0, "Button 1", 20);
-  create_button_slider_pair(&pin_27, &slider_1, "Button 2", 100);
+  create_button_slider_pair(&pin_22, &slider_0, "Left", 20);
+  create_button_slider_pair(&pin_27, &slider_1, "Right", 160);
 }
 
 void setup() {

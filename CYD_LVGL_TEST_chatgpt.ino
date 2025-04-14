@@ -96,8 +96,11 @@ void lv_create_main_gui(void) {
   static int *slider_1 = new int(1);
 
   lv_obj_t * tabview = lv_tabview_create(lv_screen_active());
-  lv_obj_clear_flag(tabview, LV_OBJ_FLAG_SCROLLABLE);  // Disable all scrolling
-  lv_obj_set_scroll_dir(tabview, LV_DIR_NONE);
+  lv_obj_clear_flag(tabview, LV_OBJ_FLAG_SCROLLABLE);
+
+  // Disable scroll on the tab content as well
+  lv_obj_t * tab_content = lv_tabview_get_content(tabview);
+  lv_obj_clear_flag(tab_content, LV_OBJ_FLAG_SCROLLABLE);  // Disable all scrolling
   lv_tabview_set_tab_bar_size(tabview, 30);
 
   lv_obj_t * tab1 = lv_tabview_add_tab(tabview, "Valve 1");

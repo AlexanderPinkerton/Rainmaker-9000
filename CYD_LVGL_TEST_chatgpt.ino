@@ -19,8 +19,6 @@ int x, y, z;
 uint32_t draw_buf[DRAW_BUF_SIZE / 4];
 
 int slider_values[2] = {0, 0};
-unsigned long lastActivationTime = 0;
-
 lv_obj_t *slider_labels[2];
 
 void log_print(lv_log_level_t level, const char * buf) {
@@ -44,57 +42,69 @@ void touchscreen_read(lv_indev_t * indev, lv_indev_data_t * data) {
   }
 }
 
+void slider_event_handler(lv_event_t * e) {
+  lv_obj_t * slider = (lv_obj_t *)lv_event_get_target(e);
+  int index = *(int*)lv_event_get_user_data(e);
+  slider_values[index] = lv_slider_get_value(slider);
+  lv_label_set_text_fmt(slider_labels[index], "%d ml", slider_values[index]);
+  Serial.printf("Slider %d set to %d ml\n", index + 1, slider_values[index]);
+}
+
 void button_event_handler(lv_event_t * e) {
   lv_event_code_t code = lv_event_get_code(e);
   int *pin = (int*)lv_event_get_user_data(e);
-  if(code == LV_EVENT_PRESSED) {
-    Serial.printf("Button pressed, controlling pin: %d\n", *pin);
+  if(code == LV_EVENT_CLICKED) {
+    Serial.printf("Testing valve at pin %d for %d ml\n", *pin, slider_values[*pin == 22 ? 0 : 1]);
     digitalWrite(*pin, HIGH);
-  } else if(code == LV_EVENT_RELEASED) {
-    Serial.printf("Button released, controlling pin: %d\n", *pin);
+    delay(slider_values[*pin == 22 ? 0 : 1]);
     digitalWrite(*pin, LOW);
   }
 }
 
-void slider_event_handler(lv_event_t * e) {
-  lv_obj_t * slider = (lv_obj_t*)lv_event_get_target(e);
-  int *slider_index = (int*)lv_event_get_user_data(e);
-  slider_values[*slider_index] = lv_slider_get_value(slider);
-  lv_label_set_text_fmt(slider_labels[*slider_index], "%d sec", slider_values[*slider_index]);
-  Serial.printf("Slider %d set to %d seconds\n", *slider_index + 1, slider_values[*slider_index]);
-}
-
-void create_button_slider_pair(int *pin, int *slider_index, const char * label_text, int y_offset) {
-  lv_obj_t * label = lv_label_create(lv_screen_active());
-  lv_label_set_text(label, label_text);
+void create_valve_tab(lv_obj_t * parent, const char * label_text, int *slider_index, int pin) {
+  lv_obj_t * label = lv_label_create(parent);
+  lv_label_set_text_fmt(label, "%s", label_text);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
-  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, y_offset);
+  lv_obj_align(label, LV_ALIGN_TOP_MID, 0, 10);
 
-  lv_obj_t * slider = lv_slider_create(lv_screen_active());
-  lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, y_offset + 40);
+  lv_obj_t * slider = lv_slider_create(parent);
+  lv_slider_set_range(slider, 0, 1000);
+  lv_obj_set_width(slider, 180);
+  lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, 50);
   lv_obj_add_event_cb(slider, slider_event_handler, LV_EVENT_VALUE_CHANGED, slider_index);
-  lv_slider_set_range(slider, 0, 60);
-  lv_obj_set_width(slider, 150);
 
-  slider_labels[*slider_index] = lv_label_create(lv_screen_active());
-  lv_label_set_text_fmt(slider_labels[*slider_index], "%d sec", slider_values[*slider_index]);
-  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_RIGHT, -10, y_offset + 40);
+  slider_labels[*slider_index] = lv_label_create(parent);
+  lv_label_set_text_fmt(slider_labels[*slider_index], "%d ml", slider_values[*slider_index]);
+  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_MID, 0, 90);
 
-  lv_obj_t * btn = lv_button_create(lv_screen_active());
-  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, pin);
-  lv_obj_align(btn, LV_ALIGN_TOP_MID, 0, y_offset + 70);
-  lv_obj_set_size(btn, 100, 30);
+  lv_obj_t * freq_label = lv_label_create(parent);
+  lv_label_set_text(freq_label, "every week");
+  lv_obj_align(freq_label, LV_ALIGN_TOP_MID, 0, 120);
+
+  lv_obj_t * btn = lv_btn_create(parent);
+  lv_obj_set_size(btn, 120, 40);
+  lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, &pin);
   lv_obj_t * btn_label = lv_label_create(btn);
-  lv_label_set_text(btn_label, "Test");
+  lv_label_set_text(btn_label, "TEST AMOUNT");
   lv_obj_center(btn_label);
 }
 
 void lv_create_main_gui(void) {
   static int pin_22 = 22, pin_27 = 27;
-  static int slider_0 = 0, slider_1 = 1;
+  static int *slider_0 = new int(0);
+  static int *slider_1 = new int(1);
 
-  create_button_slider_pair(&pin_22, &slider_0, "Left", 20);
-  create_button_slider_pair(&pin_27, &slider_1, "Right", 160);
+  lv_obj_t * tabview = lv_tabview_create(lv_screen_active());
+  lv_obj_clear_flag(tabview, LV_OBJ_FLAG_SCROLLABLE);  // Disable all scrolling
+  lv_obj_set_scroll_dir(tabview, LV_DIR_NONE);
+  lv_tabview_set_tab_bar_size(tabview, 30);
+
+  lv_obj_t * tab1 = lv_tabview_add_tab(tabview, "Valve 1");
+  lv_obj_t * tab2 = lv_tabview_add_tab(tabview, "Valve 2");
+
+  create_valve_tab(tab1, "Valve 1", slider_0, pin_22); // using pointer for slider index
+  create_valve_tab(tab2, "Valve 2", slider_1, pin_27); // using pointer for slider index
 }
 
 void setup() {
@@ -114,11 +124,11 @@ void setup() {
   lv_display_t * disp;
   disp = lv_tft_espi_create(SCREEN_WIDTH, SCREEN_HEIGHT, draw_buf, sizeof(draw_buf));
   lv_display_set_rotation(disp, LV_DISPLAY_ROTATION_270);
-  
+
   lv_indev_t * indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, touchscreen_read);
-  
+
   lv_create_main_gui();
 }
 
@@ -126,15 +136,4 @@ void loop() {
   lv_task_handler();
   lv_tick_inc(5);
   delay(5);
-
-  unsigned long currentTime = millis();
-  if (currentTime - lastActivationTime >= 3600000) {  // Every hour
-    lastActivationTime = currentTime;
-    int pins[] = {22, 27};
-    for (int i = 0; i < 2; i++) {
-      digitalWrite(pins[i], HIGH);
-      delay(slider_values[i] * 1000);
-      digitalWrite(pins[i], LOW);
-    }
-  }
 }

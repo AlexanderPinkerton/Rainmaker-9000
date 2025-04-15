@@ -33,6 +33,8 @@ int slider_values[2] = { 0, 0 };
 lv_obj_t *slider_labels[2];
 lv_obj_t *stats_tab = nullptr;
 
+lv_obj_t *tabview = nullptr;  // add this line at global scope
+
 void open_valve(int pin, int ml) {
   digitalWrite(pin, HIGH);
   delay((int)(ml_to_seconds(ml) * 1000));
@@ -78,9 +80,13 @@ void slider_event_handler(lv_event_t *e) {
   slider_values[index] = lv_slider_get_value(slider);
   lv_label_set_text_fmt(slider_labels[index], "%d ml", slider_values[index]);
 
+  Serial.printf("Slider %d set to %d ml\n", index + 1, slider_values[index]);
+
   prefs.begin("water", false);
   prefs.putInt(("ml" + String(index)).c_str(), slider_values[index]);
   prefs.end();
+
+  // Serial.printf("Saved ml[%d] = %d to NVS\n", index, slider_values[index]);
 }
 
 void dropdown_event_handler(lv_event_t *e) {
@@ -92,6 +98,8 @@ void dropdown_event_handler(lv_event_t *e) {
   prefs.begin("water", false);
   prefs.putInt(("freq" + String(index)).c_str(), frequency_hours[index]);
   prefs.end();
+
+  // Serial.printf("Saved freq[%d] = %d to NVS\n", index, frequency_hours[index]);
 }
 
 void button_event_handler(lv_event_t *e) {
@@ -101,11 +109,9 @@ void button_event_handler(lv_event_t *e) {
     int index = (*pin == 22) ? 0 : 1;
 
 
-    open_valve(*pin, slider_values[index]);
+    Serial.printf("Opening valve %i", index + 1);
 
-    // digitalWrite(*pin, HIGH);
-    // delay((int)(ml_to_seconds(slider_values[index]) * 1000));
-    // digitalWrite(*pin, LOW);
+    open_valve(*pin, slider_values[index]);
   }
 }
 
@@ -189,7 +195,8 @@ void lv_create_main_gui(void) {
   static int *slider_0 = new int(0);
   static int *slider_1 = new int(1);
 
-  lv_obj_t *tabview = lv_tabview_create(lv_screen_active());
+  tabview = lv_tabview_create(lv_screen_active());
+
   lv_obj_clear_flag(tabview, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_clear_flag(lv_tabview_get_content(tabview), LV_OBJ_FLAG_SCROLLABLE);
   lv_tabview_set_tab_bar_size(tabview, 30);
@@ -205,16 +212,29 @@ void lv_create_main_gui(void) {
   lv_obj_t *override_btn = lv_btn_create(stats_tab);
   lv_obj_set_size(override_btn, 140, 40);
   lv_obj_align(override_btn, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_add_event_cb(override_btn, [](lv_event_t *e) {
-    int pins[] = { 22, 27 };
-    for (int i = 0; i < 2; i++) {
-      open_valve(pins[i], slider_values[i]);
-    }
-    update_stats_tab();
-  }, LV_EVENT_CLICKED, NULL);
+  lv_obj_add_event_cb(
+    override_btn, [](lv_event_t *e) {
+      int pins[] = { 22, 27 };
+      for (int i = 0; i < 2; i++) {
+        open_valve(pins[i], slider_values[i]);
+      }
+      update_stats_tab();
+    },
+    LV_EVENT_CLICKED, NULL);
   lv_obj_t *override_label = lv_label_create(override_btn);
   lv_label_set_text(override_label, "WATER ALL NOW");
   lv_obj_center(override_label);
+
+
+  lv_obj_add_event_cb(
+    tabview, [](lv_event_t *e) {
+      uint32_t tab_idx = lv_tabview_get_tab_act(tabview);
+      // Assuming stats_tab is the 3rd tab (index 2)
+      if (tab_idx == 2) {
+        update_stats_tab();
+      }
+    },
+    LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 void setup() {

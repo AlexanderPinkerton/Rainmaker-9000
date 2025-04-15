@@ -27,8 +27,9 @@ float ml_to_seconds(int ml) {
 }
 
 // Track scheduling data
-unsigned long last_dispense[2] = { 0, 0 };  // Track last dispense times
-int frequency_hours[2] = { 24, 168 };       // Day = 24h, Week = 168h
+unsigned long last_dispense[2] = { 0, 0 };       // Track last dispense times
+unsigned long total_dispensed_ml[2] = { 0, 0 };  // Track running totals
+int frequency_hours[2] = { 24, 168 };            // Day = 24h, Week = 168h
 
 int slider_values[2] = { 0, 0 };
 lv_obj_t *slider_labels[2];
@@ -38,6 +39,15 @@ void open_valve(int pin, int ml) {
   delay((int)(ml_to_seconds(ml) * 1000));  // Convert seconds to ms
   digitalWrite(pin, LOW);
   Serial.printf("Valve on pin %d opened for %d ml\n", pin, ml);
+
+  int i = (pin == 22) ? 0 : 1;
+  last_dispense[i] = millis();
+  total_dispensed_ml[i] += ml;
+
+  prefs.begin("water", false);
+  prefs.putULong(("total" + String(i)).c_str(), total_dispensed_ml[i]);
+  prefs.putULong(("last" + String(i)).c_str(), last_dispense[i]);
+  prefs.end();
 }
 
 void log_print(lv_log_level_t level, const char *buf) {
@@ -75,7 +85,6 @@ void slider_event_handler(lv_event_t *e) {
 
   Serial.printf("Saved ml[%d] = %d to NVS\n", index, slider_values[index]);
   // Serial.printf("Readback ml[%d] = %d, freq[%d] = %d\n", index, savedMl, index, savedFreq);
-
 }
 
 void dropdown_event_handler(lv_event_t *e) {
@@ -91,7 +100,6 @@ void dropdown_event_handler(lv_event_t *e) {
 
   Serial.printf("Saved freq[%d] = %d to NVS\n", index, frequency_hours[index]);
   // Serial.printf("Readback ml[%d] = %d, freq[%d] = %d\n", index, savedMl, index, savedFreq);
-
 }
 
 void button_event_handler(lv_event_t *e) {
@@ -170,6 +178,32 @@ void lv_create_main_gui(void) {
 
   create_valve_tab(tab1, "Valve 1", slider_0, pin_22);  // using pointer for slider index
   create_valve_tab(tab2, "Valve 2", slider_1, pin_27);  // using pointer for slider index
+
+
+  // Make history tab
+  lv_obj_t *tab3 = lv_tabview_add_tab(tabview, "Stats");
+
+  for (int i = 0; i < 2; i++) {
+    char buf[64];
+
+    // Last Watered
+    if (last_dispense[i] > 0) {
+      int hours = (millis() - last_dispense[i]) / 3600000UL;
+      snprintf(buf, sizeof(buf), "Valve %d last: %d hr ago", i + 1, hours);
+    } else {
+      snprintf(buf, sizeof(buf), "Valve %d last: never", i + 1);
+    }
+    lv_obj_t *label = lv_label_create(tab3);
+    lv_label_set_text(label, buf);
+    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 30 + i * 40);
+
+    // Total dispensed
+    char totalBuf[64];
+    snprintf(totalBuf, sizeof(totalBuf), "Total: %lu ml", total_dispensed_ml[i]);
+    lv_obj_t *totalLabel = lv_label_create(tab3);
+    lv_label_set_text(totalLabel, totalBuf);
+    lv_obj_align(totalLabel, LV_ALIGN_TOP_LEFT, 10, 50 + i * 40);
+  }
 }
 
 void setup() {
@@ -196,6 +230,13 @@ void setup() {
 
   // Load prefs from mem
   Serial.println("Loading prefs BEFORE GUI...");
+
+  for (int i = 0; i < 2; i++) {
+    total_dispensed_ml[i] = prefs.getULong(("total" + String(i)).c_str(), 0);
+    last_dispense[i] = prefs.getULong(("last" + String(i)).c_str(), 0);
+  }
+
+
 
   prefs.begin("water", true);
   for (int i = 0; i < 2; i++) {

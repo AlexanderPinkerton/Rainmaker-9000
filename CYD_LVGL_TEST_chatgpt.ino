@@ -69,21 +69,30 @@ void create_valve_tab(lv_obj_t * parent, const char * label_text, int *slider_in
 
   lv_obj_t * slider = lv_slider_create(parent);
   lv_slider_set_range(slider, 0, 1000);
-  lv_obj_set_width(slider, 180);
+  lv_obj_set_width(slider, 200);
   lv_obj_align(slider, LV_ALIGN_TOP_MID, 0, 50);
   lv_obj_add_event_cb(slider, slider_event_handler, LV_EVENT_VALUE_CHANGED, slider_index);
 
   slider_labels[*slider_index] = lv_label_create(parent);
-  lv_label_set_text_fmt(slider_labels[*slider_index], "%d ml", slider_values[*slider_index]);
-  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_TOP_MID, 0, 90);
+  lv_label_set_text_fmt(slider_labels[*slider_index], "%d ml");
+  lv_obj_align(slider_labels[*slider_index], LV_ALIGN_LEFT_MID, 20, 0);
+  lv_obj_set_style_text_font(slider_labels[*slider_index], &lv_font_montserrat_18, 0);
 
-  lv_obj_t * freq_label = lv_label_create(parent);
-  lv_label_set_text(freq_label, "every week");
-  lv_obj_align(freq_label, LV_ALIGN_TOP_MID, 0, 120);
+  const char * textt = "every";
+  lv_obj_t * label2 = lv_label_create(parent);
+  lv_label_set_text_fmt(label2, "%s", textt);
+  lv_obj_set_style_text_font(label2, &lv_font_montserrat_20, 0);
+  lv_obj_align(label2, LV_ALIGN_CENTER, 0, 0);
+
+  lv_obj_t * dd = lv_dropdown_create(parent);
+  lv_obj_set_size(dd, 100, 40);
+  lv_dropdown_set_options(dd, "Day\nWeek\n");
+  lv_obj_align(dd, LV_ALIGN_RIGHT_MID, 0, 0);
+  lv_dropdown_set_selected(dd, 1);
 
   lv_obj_t * btn = lv_btn_create(parent);
   lv_obj_set_size(btn, 120, 40);
-  lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, -20);
+  lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, 0);
   lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, &pin);
   lv_obj_t * btn_label = lv_label_create(btn);
   lv_label_set_text(btn_label, "TEST AMOUNT");
@@ -100,7 +109,8 @@ void lv_create_main_gui(void) {
 
   // Disable scroll on the tab content as well
   lv_obj_t * tab_content = lv_tabview_get_content(tabview);
-  lv_obj_clear_flag(tab_content, LV_OBJ_FLAG_SCROLLABLE);  // Disable all scrolling
+  lv_obj_clear_flag(tab_content, LV_OBJ_FLAG_SCROLLABLE);
+
   lv_tabview_set_tab_bar_size(tabview, 30);
 
   lv_obj_t * tab1 = lv_tabview_add_tab(tabview, "Valve 1");

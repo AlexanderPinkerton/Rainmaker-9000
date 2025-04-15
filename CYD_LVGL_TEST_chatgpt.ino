@@ -114,6 +114,9 @@ void button_event_handler(lv_event_t *e) {
 }
 
 void create_valve_tab(lv_obj_t *parent, const char *label_text, int *slider_index, int pin) {
+
+  int *pin_ptr = new int(pin);  // Allocate new memory to store pin
+  
   lv_obj_t *label = lv_label_create(parent);
   lv_label_set_text_fmt(label, "%s", label_text);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
@@ -153,7 +156,7 @@ void create_valve_tab(lv_obj_t *parent, const char *label_text, int *slider_inde
   lv_obj_t *btn = lv_btn_create(parent);
   lv_obj_set_size(btn, 120, 40);
   lv_obj_align(btn, LV_ALIGN_BOTTOM_MID, 0, 0);
-  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, &pin);
+  lv_obj_add_event_cb(btn, button_event_handler, LV_EVENT_ALL, pin_ptr);
   lv_obj_t *btn_label = lv_label_create(btn);
   lv_label_set_text(btn_label, "TEST AMOUNT");
   lv_obj_center(btn_label);

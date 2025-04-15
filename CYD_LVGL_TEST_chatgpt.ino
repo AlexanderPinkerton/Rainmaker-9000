@@ -116,7 +116,7 @@ void button_event_handler(lv_event_t *e) {
 void create_valve_tab(lv_obj_t *parent, const char *label_text, int *slider_index, int pin) {
 
   int *pin_ptr = new int(pin);  // Allocate new memory to store pin
-  
+
   lv_obj_t *label = lv_label_create(parent);
   lv_label_set_text_fmt(label, "%s", label_text);
   lv_obj_set_style_text_font(label, &lv_font_montserrat_20, 0);
@@ -191,8 +191,11 @@ void lv_create_main_gui(void) {
 
     // Last Watered
     if (last_dispense[i] > 0) {
-      int hours = (millis() - last_dispense[i]) / 3600000UL;
-      snprintf(buf, sizeof(buf), "Valve %d last: %d hr ago", i + 1, hours);
+
+      int elapsedMillis = millis() - last_dispense[i];
+      int elapsedHours = elapsedMillis / 3600000UL;
+
+      snprintf(buf, sizeof(buf), "Valve %d last: %d hr ago", i + 1, elapsedHours);
     } else {
       snprintf(buf, sizeof(buf), "Valve %d last: never", i + 1);
     }
@@ -207,6 +210,35 @@ void lv_create_main_gui(void) {
     lv_label_set_text(totalLabel, totalBuf);
     lv_obj_align(totalLabel, LV_ALIGN_TOP_LEFT, 10, 50 + i * 40);
   }
+
+
+  // Test buttons
+  // WATER ALL NOW button
+  lv_obj_t *override_btn = lv_btn_create(tab3);
+  lv_obj_set_size(override_btn, 140, 40);
+  lv_obj_align(override_btn, LV_ALIGN_BOTTOM_MID, 0, 0);
+  lv_obj_add_event_cb(
+    override_btn, [](lv_event_t *e) {
+      Serial.println("Override: Water all valves now");
+
+      int pins[] = { 22, 27 };
+      for (int i = 0; i < 2; i++) {
+        open_valve(pins[i], slider_values[i]);
+        last_dispense[i] = millis();
+        total_dispensed_ml[i] += slider_values[i];
+
+        // Persist updated stats
+        prefs.begin("water", false);
+        prefs.putULong(("last" + String(i)).c_str(), last_dispense[i]);
+        prefs.putULong(("total" + String(i)).c_str(), total_dispensed_ml[i]);
+        prefs.end();
+      }
+    },
+    LV_EVENT_CLICKED, NULL);
+
+  lv_obj_t *override_label = lv_label_create(override_btn);
+  lv_label_set_text(override_label, "WATER ALL NOW");
+  lv_obj_center(override_label);
 }
 
 void setup() {
@@ -234,20 +266,34 @@ void setup() {
   // Load prefs from mem
   Serial.println("Loading prefs BEFORE GUI...");
 
+  prefs.begin("water", true);  // <-- Mount preferences first!
+
   for (int i = 0; i < 2; i++) {
     total_dispensed_ml[i] = prefs.getULong(("total" + String(i)).c_str(), 0);
     last_dispense[i] = prefs.getULong(("last" + String(i)).c_str(), 0);
-  }
-
-
-
-  prefs.begin("water", true);
-  for (int i = 0; i < 2; i++) {
-    slider_values[i] = prefs.getInt(("ml" + String(i)).c_str(), -999);  // -999 shows if missing
+    slider_values[i] = prefs.getInt(("ml" + String(i)).c_str(), -999);
     frequency_hours[i] = prefs.getInt(("freq" + String(i)).c_str(), -999);
-    Serial.printf("Boot read: ml[%d] = %d, freq[%d] = %d\n", i, slider_values[i], i, frequency_hours[i]);
+
+    Serial.printf("Boot read: ml[%d] = %d, freq[%d] = %d, total[%d] = %lu, last[%d] = %lu\n",
+                  i, slider_values[i], i, frequency_hours[i], i, total_dispensed_ml[i], i, last_dispense[i]);
   }
-  prefs.end();
+
+  prefs.end();  // done reading from NVS
+
+  // for (int i = 0; i < 2; i++) {
+  //   total_dispensed_ml[i] = prefs.getULong(("total" + String(i)).c_str(), 0);
+  //   last_dispense[i] = prefs.getULong(("last" + String(i)).c_str(), 0);
+  // }
+
+
+
+  // prefs.begin("water", true);
+  // for (int i = 0; i < 2; i++) {
+  //   slider_values[i] = prefs.getInt(("ml" + String(i)).c_str(), -999);  // -999 shows if missing
+  //   frequency_hours[i] = prefs.getInt(("freq" + String(i)).c_str(), -999);
+  //   Serial.printf("Boot read: ml[%d] = %d, freq[%d] = %d\n", i, slider_values[i], i, frequency_hours[i]);
+  // }
+  // prefs.end();
 
 
   lv_create_main_gui();
